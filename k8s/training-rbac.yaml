@@ -1,0 +1,26 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: training-job-manager
+  namespace: gpu-weather
+rules:
+  - apiGroups: ["batch"]
+    resources: ["jobs"]
+    verbs: ["create", "get", "list", "watch", "delete"]
+  - apiGroups: [""]
+    resources: ["pods", "pods/log"]
+    verbs: ["get", "list"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: training-job-manager-binding
+  namespace: gpu-weather
+subjects:
+  - kind: ServiceAccount
+    name: default
+    namespace: gpu-weather
+roleRef:
+  kind: Role
+  name: training-job-manager
+  apiGroup: rbac.authorization.k8s.io

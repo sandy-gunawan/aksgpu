@@ -1,0 +1,20 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: weather-config
+  namespace: gpu-weather
+data:
+  CITY_NAME: "new-york"
+  CITY_LAT: "40.71"
+  CITY_LON: "-74.01"
+  BLOB_ACCOUNT_NAME: "YOURSTORAGEACCOUNT"
+  TRAINER_IMAGE: "YOURACR.azurecr.io/weather-api:v1"
+  AZURE_CLIENT_ID: "REPLACE_AT_DEPLOY_TIME"  # Set by setup-managed-identity.ps1
+  INPUT_WINDOW: "168"
+  OUTPUT_WINDOW: "24"
+  HIDDEN_SIZE: "128"
+  NUM_LAYERS: "2"
+  BATCH_SIZE: "64"
+  EPOCHS: "50"
+  LEARNING_RATE: "0.001"
+

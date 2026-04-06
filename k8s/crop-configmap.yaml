@@ -1,0 +1,21 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: crop-config
+  namespace: gpu-weather
+data:
+  LOCATION_NAME: "palm-riau"
+  LOCATION_LAT: "1.50"
+  LOCATION_LON: "102.10"
+  BLOB_ACCOUNT_NAME: "YOURSTORAGEACCOUNT"
+  AZURE_CLIENT_ID: "REPLACE_AT_DEPLOY_TIME"  # Set by setup-managed-identity.ps1
+  MODEL_CONTAINER: "crop-models"
+  DATA_CONTAINER: "crop-data"
+  CROP_TRAINER_IMAGE: "YOURACR.azurecr.io/crop-api:v1"
+  INPUT_WINDOW: "60"
+  OUTPUT_WINDOW: "32"
+  HIDDEN_SIZE: "128"
+  NUM_LAYERS: "2"
+  BATCH_SIZE: "32"
+  EPOCHS: "80"
+  LEARNING_RATE: "0.001"

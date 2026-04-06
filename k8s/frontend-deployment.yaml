@@ -1,0 +1,44 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: weather-ui
+  namespace: gpu-weather
+  labels:
+    app: weather-ui
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: weather-ui
+  template:
+    metadata:
+      labels:
+        app: weather-ui
+    spec:
+      containers:
+        - name: weather-ui
+          image: YOURACR.azurecr.io/weather-ui:v1
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 80
+          resources:
+            requests:
+              cpu: "50m"
+              memory: "64Mi"
+            limits:
+              cpu: "100m"
+              memory: "128Mi"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: weather-ui-svc
+  namespace: gpu-weather
+spec:
+  selector:
+    app: weather-ui
+  ports:
+    - port: 80
+      targetPort: 80
+  type: ClusterIP
+

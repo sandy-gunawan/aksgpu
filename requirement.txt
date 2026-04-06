@@ -1,0 +1,10 @@
+I want to have a demo for GPU using AKS cluster to predict lets say a weather.
+1. I need you to create a real use case for weather scenario
+2. You can get all data from the open source data
+3. You have mechanism that showing the model created is correct by comparing lest say using data 2 weeks ago and then compare the real result of yesterday. THis is just example
+If you have the better mechanism, it's much better. This is on UI level. So i need you to create the UI as well as front end
+4. All services must be on Azure.
+5. I need you also to create a training data model on AKS GPU and explain to me how it works
+6. I need you to create step by step
+7. Every step you must try, test, and validate so there is no error
+ I need you to plan on details first , what need to do , what services, how it woks, the scenario , etc on details, then you can write the plan on the .mD file, so perhaps other agent who works on it, understand the context wihtout missing details. Any steps fixing error or how to do it, you can write on the .md file as well so other agent will not lost the contex

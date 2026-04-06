@@ -1,0 +1,19 @@
+# Python virtual environment
+.venv/
+__pycache__/
+*.pyc
+
+# Infrastructure config (contains secrets)
+.infra-config.json
+
+# Build/deployment logs
+*.log
+setup-output.log
+
+# Node modules
+node_modules/
+dist/
+
+# OS files
+.DS_Store
+Thumbs.db

@@ -1,0 +1,44 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: weather-training
+  namespace: gpu-weather
+spec:
+  schedule: "0 2 * * 0"          # Every Sunday at 2:00 AM UTC
+  concurrencyPolicy: Forbid       # Don't run if previous job still running
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 4             # Retry up to 4 times on failure
+      activeDeadlineSeconds: 7200 # Kill if running more than 2 hours
+      template:
+        spec:
+          containers:
+            - name: trainer
+              image: YOURACR.azurecr.io/weather-api:v1
+              imagePullPolicy: Always
+              command: ["python", "-m", "scripts.train", "--model-type", "all"]
+              resources:
+                requests:
+                  cpu: "2"
+                  memory: "8Gi"
+                  nvidia.com/gpu: 1
+                limits:
+                  cpu: "4"
+                  memory: "16Gi"
+                  nvidia.com/gpu: 1
+              envFrom:
+                - configMapRef:
+                    name: weather-config
+                - secretRef:
+                    name: weather-secrets
+          tolerations:
+            - key: "sku"
+              operator: "Equal"
+              value: "gpu"
+              effect: "NoSchedule"
+          nodeSelector:
+            kubernetes.azure.com/accelerator: nvidia
+          restartPolicy: OnFailure
+
