@@ -10,9 +10,93 @@ http://48.211.182.37/
 
 ## Quick Start — How to Access the Demo
 
-The AKS cluster is **stopped by default** to save costs. Follow these steps every time you want to use it.
+The AKS cluster is **stopped by default** to save costs. You can start it via **Azure Portal (GUI)** or **CLI (command line)**.
 
-### Step 1: Start the AKS Cluster
+### Option A: Start via Azure Portal (No CLI Needed)
+
+#### A1. Start the AKS Cluster
+
+1. Go to **https://portal.azure.com**
+2. In the top search bar, type **`aks-gpu-weather`** → click on it
+3. You'll see the AKS overview page. The status will show **"Stopped"**
+4. Click the **"Start"** button in the top toolbar
+5. Wait ~3-5 minutes. The status changes to **"Running"**
+
+```
+┌──────────────────────────────────────────────────────────────────┐
+│  Azure Portal → aks-gpu-weather                                   │
+│                                                                    │
+│  ┌──────┐ ┌──────┐ ┌───────────┐ ┌──────────┐                   │
+│  │Start │ │ Stop │ │ Restart   │ │ Delete   │    ← Top toolbar   │
+│  └──┬───┘ └──────┘ └───────────┘ └──────────┘                   │
+│     │                                                              │
+│     └── Click this when status shows "Stopped"                    │
+│                                                                    │
+│  Status: ● Stopped  →  ● Running (after 3-5 min)                │
+└──────────────────────────────────────────────────────────────────┘
+```
+
+#### A2. Enable Storage Public Access
+
+> **Why?** Corporate Azure Policy disables public network access on the storage account daily. The API pods need it to download ML models from blob storage.
+
+1. In the portal search bar, type **`stgpuweatheropd5`** → click on the Storage Account
+2. Left menu → **Networking** (under "Security + networking")
+3. Under "Public network access", select **"Enabled from all networks"**
+4. Click **"Save"** at the top
+
+```
+┌──────────────────────────────────────────────────────────────────┐
+│  Azure Portal → stgpuweatheropd5 → Networking                    │
+│                                                                    │
+│  Public network access:                                            │
+│    ○ Disabled                    ← Policy sets this daily         │
+│    ● Enabled from all networks   ← Select this                   │
+│    ○ Enabled from selected virtual networks and IP addresses      │
+│                                                                    │
+│  [ Save ]  ← Click Save                                          │
+└──────────────────────────────────────────────────────────────────┘
+```
+
+#### A3. Restart the API Pods (Portal)
+
+1. Go back to **`aks-gpu-weather`** in the portal
+2. Left menu → **Workloads** (under "Kubernetes resources")
+3. Set the namespace filter dropdown to **`gpu-weather`**
+4. You'll see three deployments: `weather-api`, `crop-api`, `weather-ui`
+5. Click on **`weather-api`** → click **"Restart"** button at the top
+6. Go back → click on **`crop-api`** → click **"Restart"**
+
+```
+┌──────────────────────────────────────────────────────────────────┐
+│  Azure Portal → aks-gpu-weather → Workloads                      │
+│                                                                    │
+│  Namespace: [ gpu-weather ▼ ]                                     │
+│                                                                    │
+│  Deployments:                                                      │
+│  ┌─────────────────┬──────────┬──────────┐                       │
+│  │ Name            │ Pods     │ Status   │                       │
+│  ├─────────────────┼──────────┼──────────┤                       │
+│  │ weather-api     │ 1/1      │ Running  │  ← Click → Restart   │
+│  │ crop-api        │ 1/1      │ Running  │  ← Click → Restart   │
+│  │ weather-ui      │ 1/1      │ Running  │  (no restart needed)  │
+│  └─────────────────┴──────────┴──────────┘                       │
+└──────────────────────────────────────────────────────────────────┘
+```
+
+#### A4. Open the App
+
+Open your browser: **http://48.211.182.37/**
+
+#### A5. Stop When Done (Save Money!)
+
+Go back to **aks-gpu-weather** in Azure Portal → Click **"Stop"** in the top toolbar.
+
+---
+
+### Option B: Start via CLI (Command Line)
+
+#### B1. Start the AKS Cluster
 
 ```powershell
 az aks start --resource-group rg-gpu-weather --name aks-gpu-weather
@@ -26,9 +110,7 @@ az aks show --resource-group rg-gpu-weather --name aks-gpu-weather `
 # Wait until it says "Succeeded"
 ```
 
-### Step 2: Fix Storage Access (Required Every Time)
-
-> **Why?** Corporate Azure Policy disables public network access on the storage account daily. The API pods need network access to download ML models from blob storage.
+#### B2. Fix Storage Access (Required Every Time)
 
 ```powershell
 az storage account update `
@@ -37,9 +119,7 @@ az storage account update `
   --public-network-access Enabled
 ```
 
-### Step 3: Restart the API Pods
-
-The API pods need to be restarted to reconnect to storage after enabling access:
+#### B3. Restart the API Pods
 
 ```powershell
 az aks get-credentials --resource-group rg-gpu-weather --name aks-gpu-weather --overwrite-existing
@@ -55,15 +135,13 @@ kubectl get pods -n gpu-weather
 # All pods should show "Running" and "1/1 Ready"
 ```
 
-### Step 4: Open the App
-
-Open your browser:
+#### B4. Open the App
 
 ```
 http://48.211.182.37/
 ```
 
-### Step 5: Stop When Done (Save Money!)
+#### B5. Stop When Done (Save Money!)
 
 ```powershell
 az aks stop --resource-group rg-gpu-weather --name aks-gpu-weather
