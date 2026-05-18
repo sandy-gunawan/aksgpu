@@ -2,6 +2,15 @@
 
 A practical guide for working with the GPU Weather & Crop Health Prediction apps on AKS.
 
+> **Resource names with a `<suffix>` placeholder** are randomized per setup run. The current suffix is recorded in `.infra-config.json`. The commands below show the current run's names (suffix `ro6n`); substitute your own if it differs:
+>
+> ```powershell
+> $cfg = Get-Content C:\labs\tech\aksgpu-temp\.infra-config.json | ConvertFrom-Json
+> $cfg.AcrName       # acrgpuweatherro6n
+> $cfg.StorageName   # stgpuweatherro6n
+> $cfg.AcrLogin      # acrgpuweatherro6n.azurecr.io
+> ```
+
 ---
 
 ## How the App is Structured
@@ -38,8 +47,10 @@ To see your changes, you must: **Build** (create Docker image) -> **Push** (to A
  [4] Restart Pod            Tell Kubernetes to pull the new image
          |
          v
- [5] New code running       Your changes are live at http://20.65.30.149/
+ [5] New code running       Your changes are live at http://<ingress-ip>/
 ```
+
+> Get the ingress IP any time with `kubectl get ingress -n gpu-weather`. Current run: **http://20.7.236.50/**
 
 ---
 
@@ -49,8 +60,8 @@ To see your changes, you must: **Build** (create Docker image) -> **Push** (to A
 
 **Backend (Python/FastAPI):**
 ```powershell
-cd c:\labs\tech\gpu\aks
-az acr build --registry acrgpuweather --image weather-api:v1 .\backend --no-logs -o none
+cd c:\labs\tech\aksgpu-temp
+az acr build --registry acrgpuweatherro6n --image weather-api:v1 .\backend --no-logs -o none
 ```
 - **What it does**: Sends your `backend/` source code to Azure, builds a Docker image in the cloud (~7 min)
 - **When to run**: After changing ANY file in `backend/` (Python code, requirements.txt)
@@ -58,16 +69,16 @@ az acr build --registry acrgpuweather --image weather-api:v1 .\backend --no-logs
 
 **Frontend (React/TypeScript):**
 ```powershell
-cd c:\labs\tech\gpu\aks
-az acr build --registry acrgpuweather --image weather-ui:v1 .\frontend --no-logs -o none
+cd c:\labs\tech\aksgpu-temp
+az acr build --registry acrgpuweatherro6n --image weather-ui:v1 .\frontend --no-logs -o none
 ```
 - **What it does**: Sends your `frontend/` source code to Azure, builds a Docker image (~1-2 min)
 - **When to run**: After changing ANY file in `frontend/` (TSX, CSS, api.ts, crop components)
 
 **Crop Backend (Python/FastAPI):**
 ```powershell
-cd c:\labs\tech\gpu\aks
-az acr build --registry acrgpuweather --image crop-api:v1 .\crop --no-logs -o none
+cd c:\labs\tech\aksgpu-temp
+az acr build --registry acrgpuweatherro6n --image crop-api:v1 .\crop --no-logs -o none
 ```
 - **What it does**: Sends your `crop/` source code to Azure, builds a Docker image (~7 min)
 - **When to run**: After changing ANY file in `crop/` (Python code, requirements.txt)
@@ -125,7 +136,8 @@ kubectl describe pod -n gpu-weather -l app=weather-api | Select-String "OOM|Rest
 
 **Check API is responding:**
 ```powershell
-Invoke-RestMethod -Uri "http://20.65.30.149/api/health"
+Invoke-RestMethod -Uri "http://20.7.236.50/api/health"
+# Replace 20.7.236.50 with the output of: kubectl get ingress -n gpu-weather
 ```
 
 ### Applying Kubernetes Config Changes
@@ -160,8 +172,8 @@ kubectl apply -f k8s\training-rbac.yaml
 
 ```powershell
 # 1. Build new image (~7 min)
-cd c:\labs\tech\gpu\aks
-az acr build --registry acrgpuweather --image weather-api:v1 .\backend --no-logs -o none
+cd c:\labs\tech\aksgpu-temp
+az acr build --registry acrgpuweatherro6n --image weather-api:v1 .\backend --no-logs -o none
 
 # 2. Restart pod to use new image (~90 sec)
 kubectl rollout restart deployment weather-api -n gpu-weather
@@ -176,8 +188,8 @@ kubectl get pods -n gpu-weather -l app=weather-api
 
 ```powershell
 # 1. Build new image (~1-2 min)
-cd c:\labs\tech\gpu\aks
-az acr build --registry acrgpuweather --image weather-ui:v1 .\frontend --no-logs -o none
+cd c:\labs\tech\aksgpu-temp
+az acr build --registry acrgpuweatherro6n --image weather-ui:v1 .\frontend --no-logs -o none
 
 # 2. Restart pod (~30 sec)
 kubectl rollout restart deployment weather-ui -n gpu-weather
@@ -190,11 +202,11 @@ kubectl get pods -n gpu-weather -l app=weather-ui
 ### "I changed both backend and frontend"
 
 ```powershell
-cd c:\labs\tech\gpu\aks
+cd c:\labs\tech\aksgpu-temp
 
 # Build both (can't run in parallel -- ACR queues them)
-az acr build --registry acrgpuweather --image weather-api:v1 .\backend --no-logs -o none
-az acr build --registry acrgpuweather --image weather-ui:v1 .\frontend --no-logs -o none
+az acr build --registry acrgpuweatherro6n --image weather-api:v1 .\backend  --no-logs -o none
+az acr build --registry acrgpuweatherro6n --image weather-ui:v1  .\frontend --no-logs -o none
 
 # Restart both
 kubectl rollout restart deployment weather-api weather-ui -n gpu-weather
@@ -239,7 +251,7 @@ kubectl rollout undo deployment weather-api -n gpu-weather
 ```
 Browser (you)
     |
-    | http://20.65.30.149/
+    | http://<ingress-ip>/   (current: http://20.7.236.50/)
     v
  Ingress (nginx)                    Routes requests
     |         |
@@ -418,21 +430,25 @@ Bad model:   predicted ≠ actual  →  high MAE, negative R2
 
 | Resource | Status | Cost |
 |----------|--------|------|
-| CPU node pool (2 nodes) | Always on | ~$140/month |
-| GPU node (T4) | Scales to 0 when idle | $0 idle, ~$15/day when training |
+| CPU node pool (1 × DC4ds_v3) | Always on when cluster is running | ~$142/month |
+| GPU node (T4) | Autoscale 0 ↔ 1 (tainted, idle = 0) | $0 idle, ~$0.25 per training run |
+| Ephemeral OS disks (30 GB on both pools) | Always on with the VM | $0 (uses VM local SSD) |
+| Load Balancer (Standard) | Always on when cluster running | ~$18/month |
 | Blob Storage | Always on | ~$2/month |
-| ACR (container registry) | Always on | ~$5/month |
+| ACR (Basic tier) | Always on | ~$5/month |
+| **Cluster stopped** | `az aks stop` | **~$5–10/mo total** (storage + ACR + KV + AI) |
+| **Cluster running, idle** | | **~$170/mo** |
 
-**To stop all costs:**
+**To pause all node costs (recommended overnight / weekends):**
 ```powershell
-# Stop the AKS cluster (keeps config, $0/day)
+# Stop the AKS cluster (keeps config, drops compute to $0)
 az aks stop --resource-group rg-gpu-weather --name aks-gpu-weather
 
-# Restart later:
+# Restart later (~3-5 min):
 az aks start --resource-group rg-gpu-weather --name aks-gpu-weather
 ```
 
 **To delete everything permanently:**
 ```powershell
-az group delete --name rg-gpu-weather --yes --no-wait
+.\teardown.ps1 -Mode full     # or: az group delete --name rg-gpu-weather --yes --no-wait
 ```

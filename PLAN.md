@@ -1,5 +1,15 @@
 # Plan: GPU Weather & Crop Health Prediction on AKS — Full Production Guide
 
+> ⚠️ **This is a historical planning document.** Resource names, sizings, IPs, and command snippets in PLAN.md reflect earlier iterations of the project and **are no longer kept in sync** with the live cluster. For current operational information (architecture, costs, start/stop, build/deploy), use:
+>
+> - [README.md](README.md) — startup, shutdown, architecture, costs
+> - [AZURE-RESOURCES.md](AZURE-RESOURCES.md) — current Azure resource inventory
+> - [APP-FLOW.md](APP-FLOW.md) — current architecture diagram & request flow
+> - [HOWTO.md](HOWTO.md) — current build/deploy commands
+> - [AKS-GUIDE.md](AKS-GUIDE.md) — current Kubernetes concepts walk-through
+>
+> Resource names with no suffix in this file (e.g. `acrgpuweather`, `stgpuweather`) are placeholders; the live cluster generates a random 4-character suffix per setup run (currently `ro6n`). Check `.infra-config.json` for the live names.
+
 ## TL;DR
 
 Build end-to-end GPU-accelerated prediction applications on Azure AKS:

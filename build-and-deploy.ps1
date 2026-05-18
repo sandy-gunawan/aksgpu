@@ -1,6 +1,5 @@
 ﻿param(
-    [switch]$SkipBuild,
-
+    [switch]$SkipBuild
 )
 
 $ErrorActionPreference = "Continue"

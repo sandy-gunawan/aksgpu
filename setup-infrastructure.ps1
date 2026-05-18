@@ -32,7 +32,9 @@ if (Test-Path $configPath) {
     Write-Host "  Generated new unique names: ACR=$ACR_NAME, Storage=$STORAGE_NAME" -ForegroundColor Gray
 }
 
-# CPU SKU -- 2 vCPU candidates (policy allows these); use 2 nodes = 4 vCPU total
+# CPU SKU -- 4 vCPU candidates (need this much room for AKS system pods + APIs)
+# OS disk forced to 30 GB so Ephemeral disk fits in the cache disk
+# (avoids "OS disk > 100 GB not allowed" error). Ephemeral disk is free.
 $CPU_SKU_CANDIDATES = @(
     "Standard_DC4ds_v3",
     "Standard_D4ads_v6",
@@ -40,6 +42,7 @@ $CPU_SKU_CANDIDATES = @(
     "Standard_EC4ads_v5",
     "Standard_EC4as_v5"
 )
+$CPU_OSDISK_SIZE_GB = 30
 
 $CANDIDATE_REGIONS = @(
     "eastus2", "eastus"
@@ -228,6 +231,7 @@ else {
             --name $CLUSTER_NAME `
             --node-count 1 `
             --node-vm-size $candidate `
+            --node-osdisk-size $CPU_OSDISK_SIZE_GB `
             --generate-ssh-keys `
             --attach-acr $ACR_NAME `
             --enable-app-routing `
@@ -289,6 +293,9 @@ else {
         --name $poolName `
         --node-count 1 `
         --node-vm-size $GPU_SKU `
+        --node-osdisk-size 30 `
+        --node-taints "sku=gpu:NoSchedule" `
+        --labels "sku=gpu" `
         --enable-cluster-autoscaler `
         --min-count 0 `
         --max-count 1 `
@@ -324,6 +331,14 @@ else {
     kubectl apply -f https://raw.githubusercontent.com/NVIDIA/k8s-device-plugin/v0.14.1/nvidia-device-plugin.yml 2>$null
     Write-Ok "NVIDIA device plugin deployed"
 }
+
+# Patch the DaemonSet so it tolerates the sku=gpu taint AND only schedules on GPU nodes.
+# Without this, the DS lands on the CPU node (where no GPU exists) and the GPU
+# node never registers nvidia.com/gpu capacity, so training pods stay Pending.
+Write-Info "Patching device plugin tolerations + nodeSelector for GPU pool..."
+$dsPatch = '{"spec":{"template":{"spec":{"tolerations":[{"effect":"NoSchedule","key":"nvidia.com/gpu","operator":"Exists"},{"effect":"NoSchedule","key":"sku","operator":"Equal","value":"gpu"}],"nodeSelector":{"kubernetes.azure.com/accelerator":"nvidia"}}}}}'
+kubectl patch ds -n kube-system nvidia-device-plugin-daemonset --type=strategic -p $dsPatch 2>$null | Out-Null
+Write-Ok "Device plugin patched (tolerates sku=gpu, runs only on GPU nodes)"
 
 Write-Info "Waiting 30s for plugin to start..."
 Start-Sleep -Seconds 30
