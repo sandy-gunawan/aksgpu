@@ -91,30 +91,35 @@ if ($LASTEXITCODE -eq 0) {
     exit 1
 }
 
-# Step 5: Set AZURE_CLIENT_ID in K8s configmap so pods know which identity to use
-Write-Info "Patching configmap with AZURE_CLIENT_ID..."
+# Step 5: Set AZURE_CLIENT_ID in K8s configmaps so pods know which identity to use
+Write-Info "Patching configmaps with AZURE_CLIENT_ID..."
 $ns = kubectl get namespace gpu-weather --no-headers 2>$null
 if ($ns) {
-    kubectl patch configmap weather-config -n gpu-weather `
-        --type merge -p "{`"data`":{`"AZURE_CLIENT_ID`":`"$kubeletClientId`"}}" 2>$null
-    if ($LASTEXITCODE -eq 0) {
-        Write-Ok "ConfigMap patched: AZURE_CLIENT_ID=$kubeletClientId"
-    } else {
-        Write-Info "ConfigMap patch failed (namespace may not exist yet - will be set at deploy)"
+    foreach ($cm in @("weather-config", "crop-config")) {
+        kubectl patch configmap $cm -n gpu-weather `
+            --type merge -p "{`"data`":{`"AZURE_CLIENT_ID`":`"$kubeletClientId`"}}" 2>$null
+        if ($LASTEXITCODE -eq 0) {
+            Write-Ok "ConfigMap patched: $cm AZURE_CLIENT_ID=$kubeletClientId"
+        } else {
+            Write-Info "ConfigMap $cm patch skipped (not present yet - will be set at deploy)"
+        }
     }
 } else {
     Write-Info "Namespace gpu-weather not found yet - AZURE_CLIENT_ID will be set at deploy time"
 }
 
-# Also update the local configmap.yaml so future deploys include it
-$configmapFile = Join-Path $PSScriptRoot "..\k8s\configmap.yaml"
-if (Test-Path $configmapFile) {
-    $content = Get-Content $configmapFile -Raw
-    if ($content -match 'AZURE_CLIENT_ID:\s*"[^"]*"') {
-        $content = $content -replace 'AZURE_CLIENT_ID:\s*"[^"]*"', "AZURE_CLIENT_ID: `"$kubeletClientId`""
+# Also update the local configmap YAMLs so future deploys include it.
+# Both files use the same kubelet identity (single MI in the cluster).
+foreach ($cmFile in @("..\k8s\configmap.yaml", "..\k8s\crop-configmap.yaml")) {
+    $configmapFile = Join-Path $PSScriptRoot $cmFile
+    if (Test-Path $configmapFile) {
+        $content = Get-Content $configmapFile -Raw
+        if ($content -match 'AZURE_CLIENT_ID:\s*"[^"]*"') {
+            $content = $content -replace 'AZURE_CLIENT_ID:\s*"[^"]*"', "AZURE_CLIENT_ID: `"$kubeletClientId`""
+        }
+        Set-Content $configmapFile -Value $content -NoNewline
+        Write-Ok "Updated $(Split-Path $configmapFile -Leaf): AZURE_CLIENT_ID=$kubeletClientId"
     }
-    Set-Content $configmapFile -Value $content -NoNewline
-    Write-Ok "Updated configmap.yaml: AZURE_CLIENT_ID=$kubeletClientId"
 }
 
 # Step 6: Ensure storage containers exist (using login auth, not key auth)

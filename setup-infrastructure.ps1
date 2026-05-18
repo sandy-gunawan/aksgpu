@@ -573,6 +573,15 @@ if (Test-Path $configFile) {
     Write-Ok "Updated configmap.yaml with storage name: $STORAGE_NAME"
 }
 
+# Same substitution for the crop configmap (uses the same storage account).
+$cropConfigFile = Join-Path $PSScriptRoot "k8s\crop-configmap.yaml"
+if (Test-Path $cropConfigFile) {
+    $content = Get-Content $cropConfigFile -Raw
+    $content = $content -replace 'BLOB_ACCOUNT_NAME: ".*?"', "BLOB_ACCOUNT_NAME: ""$STORAGE_NAME"""
+    Set-Content $cropConfigFile -Value $content -NoNewline
+    Write-Ok "Updated crop-configmap.yaml with storage name: $STORAGE_NAME"
+}
+
 $acrLogin = az acr show --name $ACR_NAME --query loginServer -o tsv
 $acrPattern = "[a-z0-9]+\.azurecr\.io"
 $yamlFiles = Get-ChildItem -Path (Join-Path $PSScriptRoot "k8s") -Filter "*.yaml" -Recurse
